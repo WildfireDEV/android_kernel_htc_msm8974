@@ -1009,14 +1009,14 @@ void proximity_set(int enabled)
 
 int check_pocket(void)
 {
-	u8 data[10]={0};
+	u8 data[2]={0};
 	int ret;
 
 	CWMCU_i2c_read(mcu_data, CWSTM32_READ_Proximity, data, 2);
 	I("[WG] check pocket: data0=%d data1=%d\n", data[0], data[1]);
 	ret = data[0];
 
-	return ret;
+	return !ret;
 }
 #endif
 
@@ -1382,13 +1382,6 @@ static int active_set(struct device *dev,struct device_attribute *attr,const cha
 		I("%s: Any_Motion && power_key_pressed\n", __func__);
 		return count;
 	}
-
-#ifdef CONFIG_TOUCHSCREEN_SYNAPTICS_WAKE_GESTURES
-	if ((sensors_id == Proximity) && (enabled == 0) && proximity_flag) {
-		enabled = 1;
-	}
-#endif
-
 	if ((sensors_id == Proximity) && (enabled == 0)) {
 		if (mcu_data->proximity_debu_info == 1) {
 			uint8_t mcu_data_p[4];
@@ -1696,30 +1689,6 @@ static int boot_mode_show(struct device *dev, struct device_attribute *attr, cha
 		return snprintf(buf, PAGE_SIZE, "%d\n", mcu_data->mfg_mode);
 	} else
 		return snprintf(buf, PAGE_SIZE, "%d\n", -1);
-}
-
-
-static int flush_set(struct device *dev,struct device_attribute *attr,
-		     const char *buf, size_t count)
-{
-	I("%s++:\n", __func__);
-
-	if (mcu_data) {
-		input_report_rel(mcu_data->input, HTC_Any_Motion, 777);
-		input_sync(mcu_data->input);
-	}
-
-	return count;
-}
-
-static int flush_show(struct device *dev, struct device_attribute *attr,
-		      char *buf)
-{
-	int ret;
-
-	ret = sprintf(buf, "%d\n", 1);
-
-	return ret;
 }
 
 #if 0
@@ -2225,7 +2194,7 @@ static void CWMCU_read(struct CWMCU_data *sensor)
 				D("%s: Gravity(0, 1, 2) = (%d, %d, %d), Filtered\n",
 						__func__, data_buff[0], data_buff[1], data_buff[2]);
 			} else {
-				input_report_abs(sensor->input, ABS_GRA_X, 10000);
+				input_report_abs(sensor->input, ABS_GRA_X, 1);
 				input_report_abs(sensor->input, ABS_GRA_X, data_buff[0]);
 				input_report_abs(sensor->input, ABS_GRA_Y, data_buff[1]);
 				input_report_abs(sensor->input, ABS_GRA_Z, data_buff[2]);
@@ -2433,7 +2402,7 @@ static void CWMCU_read(struct CWMCU_data *sensor)
 					D("%s: Gyro_Uncalib(0, 1, 2, 3, 4, 5) = (%d, %d, %d, %d, %d, %d), Filtered\n",
 							__func__, data_buff[0], data_buff[1], data_buff[2], data_buff[3], data_buff[4], data_buff[5]);
 				} else {
-					input_report_abs(sensor->input, ABS_GYROSCOPE_UNCALIBRATED_X, 10000);
+					input_report_abs(sensor->input, ABS_GYROSCOPE_UNCALIBRATED_X, 1);
 					input_report_abs(sensor->input, ABS_GYROSCOPE_UNCALIBRATED_X, data_buff[0]);
 					input_report_abs(sensor->input, ABS_GYROSCOPE_UNCALIBRATED_Y, data_buff[1]);
 					input_report_abs(sensor->input, ABS_GYROSCOPE_UNCALIBRATED_Z, data_buff[2]);
@@ -2473,7 +2442,7 @@ static void CWMCU_read(struct CWMCU_data *sensor)
 					D("%s: Game_RV(0, 1, 2) = (%d, %d, %d), Filtered\n",
 							__func__, data_buff[0], data_buff[1], data_buff[2]);
 				} else {
-					input_report_abs(sensor->input, ABS_GAME_ROTATION_VECTOR_X, 10000);
+					input_report_abs(sensor->input, ABS_GAME_ROTATION_VECTOR_X, 1);
 					input_report_abs(sensor->input, ABS_GAME_ROTATION_VECTOR_X, data_buff[0]);
 					input_report_abs(sensor->input, ABS_GAME_ROTATION_VECTOR_Y, data_buff[1]);
 					input_report_abs(sensor->input, ABS_GAME_ROTATION_VECTOR_Z, data_buff[2]);
@@ -2510,7 +2479,7 @@ static void CWMCU_read(struct CWMCU_data *sensor)
 					D("%s: Geo_RV(0, 1, 2) = (%d, %d, %d), Filtered\n",
 							__func__, data_buff[0], data_buff[1], data_buff[2]);
 				} else {
-					input_report_abs(sensor->input, ABS_GEOMAGNETIC_ROTATION_VECTOR_X, 10000);
+					input_report_abs(sensor->input, ABS_GEOMAGNETIC_ROTATION_VECTOR_X, 1);
 					input_report_abs(sensor->input, ABS_GEOMAGNETIC_ROTATION_VECTOR_X, data_buff[0]);
 					input_report_abs(sensor->input, ABS_GEOMAGNETIC_ROTATION_VECTOR_Y, data_buff[1]);
 					input_report_abs(sensor->input, ABS_GEOMAGNETIC_ROTATION_VECTOR_Z, data_buff[2]);
@@ -3529,7 +3498,6 @@ static struct device_attribute attributes[] = {
 	__ATTR(data_light_kadc, 0666, get_light_kadc, NULL),
 	__ATTR(firmware_version, 0666, get_firmware_version, NULL),
 	__ATTR(boot_mode, 0660, boot_mode_show, boot_mode_set),
-	__ATTR(flush, 0660, flush_show, flush_set),
 #ifdef HTC_ENABLE_SENSORHUB_UART_DEBUG
 	__ATTR(uart_debug, 0666, NULL, uart_debug_switch),
 #endif
