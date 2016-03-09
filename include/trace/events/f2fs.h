@@ -1036,3 +1036,4 @@ DEFINE_EVENT(f2fs_op, f2fs_sync_file_exit,
 
  /* This part must be outside protection */
 #include <trace/define_trace.h>
+

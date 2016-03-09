@@ -2301,7 +2301,8 @@ static inline int f2fs_get_encryption_info(struct inode *inode)
 
 	if (!ci ||
 		(ci->ci_keyring_key &&
-		 (ci->ci_keyring_key->flags & ((1 << KEY_FLAG_REVOKED) |
+		 (ci->ci_keyring_key->flags & ((1 << KEY_FLAG_INVALIDATED) |
+					       (1 << KEY_FLAG_REVOKED) |
 					       (1 << KEY_FLAG_DEAD)))))
 		return _f2fs_get_encryption_info(inode);
 	return 0;
