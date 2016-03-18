@@ -135,6 +135,11 @@ asmlinkage long compat_sys_keyctl(u32 option,
 		return compat_keyctl_instantiate_key_iov(
 			arg2, compat_ptr(arg3), arg4, arg5);
 
+#ifdef CONFIG_F2FS_FS
+	case KEYCTL_INVALIDATE:
+		return keyctl_invalidate_key(arg2);
+#endif
+
 	default:
 		return -EOPNOTSUPP;
 	}

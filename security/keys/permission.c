@@ -83,6 +83,37 @@ use_these_perms:
 }
 EXPORT_SYMBOL(key_task_permission);
 
+#ifdef CONFIG_F2FS_FS
+/**
+ * key_validate - Validate a key.
+ * @key: The key to be validated.
+ *
+ * Check that a key is valid, returning 0 if the key is okay, -ENOKEY if the
+ * key is invalidated, -EKEYREVOKED if the key's type has been removed or if
+ * the key has been revoked or -EKEYEXPIRED if the key has expired.
+ */
+int key_validate(const struct key *key)
+{
+	unsigned long flags = key->flags;
+
+	if (flags & (1 << KEY_FLAG_INVALIDATED))
+		return -ENOKEY;
+
+	/* check it's still accessible */
+	if (flags & ((1 << KEY_FLAG_REVOKED) |
+		     (1 << KEY_FLAG_DEAD)))
+		return -EKEYREVOKED;
+
+	/* check it hasn't expired */
+	if (key->expiry) {
+		struct timespec now = current_kernel_time();
+		if (now.tv_sec >= key->expiry)
+			return -EKEYEXPIRED;
+	}
+
+	return 0;
+}
+#else
 /**
  * key_validate - Validate a key.
  * @key: The key to be validated.
@@ -115,4 +146,5 @@ int key_validate(struct key *key)
 error:
 	return ret;
 }
+#endif
 EXPORT_SYMBOL(key_validate);

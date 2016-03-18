@@ -152,6 +152,12 @@ void ftrace_likely_update(struct ftrace_branch_data *f, int val, int expect);
 # define barrier() __memory_barrier()
 #endif
 
+#ifdef CONFIG_F2FS_FS
+#ifndef barrier_data
+# define barrier_data(ptr) barrier()
+#endif
+#endif
+
 /* Unreachable code */
 #ifndef unreachable
 # define unreachable() do { } while (1)

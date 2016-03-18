@@ -156,6 +156,9 @@ struct key {
 #define KEY_FLAG_USER_CONSTRUCT	4	/* set if key is being constructed in userspace */
 #define KEY_FLAG_NEGATIVE	5	/* set if key is negative */
 #define KEY_FLAG_ROOT_CAN_CLEAR	6	/* set if key can be cleared by root without permission */
+#ifdef CONFIG_F2FS_FS
+#define KEY_FLAG_INVALIDATED	7	/* set if key has been invalidated */
+#endif
 
 	/* the description string
 	 * - this is used to match a key against search criteria
@@ -200,6 +203,9 @@ extern struct key *key_alloc(struct key_type *type,
 
 extern void key_revoke(struct key *key);
 extern void key_put(struct key *key);
+#ifdef CONFIG_F2FS_FS
+extern void key_invalidate(struct key *key);
+#endif
 
 static inline struct key *key_get(struct key *key)
 {
@@ -236,7 +242,11 @@ extern struct key *request_key_async_with_auxdata(struct key_type *type,
 
 extern int wait_for_key_construction(struct key *key, bool intr);
 
+#ifdef CONFIG_F2FS_FS
+extern int key_validate(const struct key *key);
+#else
 extern int key_validate(struct key *key);
+#endif
 
 extern key_ref_t key_create_or_update(key_ref_t keyring,
 				      const char *type,
@@ -319,6 +329,9 @@ extern void key_init(void);
 #define key_serial(k)			0
 #define key_get(k) 			({ NULL; })
 #define key_revoke(k)			do { } while(0)
+#ifdef CONFIG_F2FS_FS
+#define key_invalidate(k)		do { } while(0)
+#endif
 #define key_put(k)			do { } while(0)
 #define key_ref_put(k)			do { } while(0)
 #define make_key_ref(k, p)		NULL

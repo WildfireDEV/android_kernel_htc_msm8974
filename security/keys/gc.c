@@ -71,6 +71,17 @@ void key_schedule_gc(time_t gc_at)
 	}
 }
 
+#ifdef CONFIG_F2FS_FS
+/*
+ * Schedule a dead links collection run.
+ */
+void key_schedule_gc_links(void)
+{
+	set_bit(KEY_GC_KEY_EXPIRED, &key_gc_flags);
+	queue_work(system_nrt_wq, &key_gc_work);
+}
+#endif
+
 /*
  * Some key's cleanup time was met after it expired, so we need to get the
  * reaper to go through a cycle finding expired keys.
@@ -79,8 +90,12 @@ static void key_gc_timer_func(unsigned long data)
 {
 	kenter("");
 	key_gc_next_run = LONG_MAX;
+#ifdef CONFIG_F2FS_FS
+	key_schedule_gc_links();
+#else
 	set_bit(KEY_GC_KEY_EXPIRED, &key_gc_flags);
 	queue_work(system_nrt_wq, &key_gc_work);
+#endif
 }
 
 /*
@@ -131,12 +146,19 @@ void key_gc_keytype(struct key_type *ktype)
 static void key_gc_keyring(struct key *keyring, time_t limit)
 {
 	struct keyring_list *klist;
+#ifndef CONFIG_F2FS_FS
 	struct key *key;
+#endif
 	int loop;
 
 	kenter("%x", key_serial(keyring));
 
+#ifdef CONFIG_F2FS_FS
+	if (keyring->flags & ((1 << KEY_FLAG_INVALIDATED) |
+			      (1 << KEY_FLAG_REVOKED)))
+#else
 	if (test_bit(KEY_FLAG_REVOKED, &keyring->flags))
+#endif
 		goto dont_gc;
 
 	/* scan the keyring looking for dead keys */
@@ -148,9 +170,14 @@ static void key_gc_keyring(struct key *keyring, time_t limit)
 	loop = klist->nkeys;
 	smp_rmb();
 	for (loop--; loop >= 0; loop--) {
+#ifdef CONFIG_F2FS_FS
+		struct key *key = klist->keys[loop];
+		if (key_is_dead(key, limit))
+#else
 		key = klist->keys[loop];
 		if (test_bit(KEY_FLAG_DEAD, &key->flags) ||
 		    (key->expiry > 0 && key->expiry <= limit))
+#endif
 			goto do_gc;
 	}
 

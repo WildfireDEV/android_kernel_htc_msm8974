@@ -927,13 +927,17 @@ static inline void cpuacct_charge(struct task_struct *tsk, u64 cputime) {}
 
 static inline void inc_nr_running(struct rq *rq)
 {
+#if defined(CONFIG_MSM_DCVS)
 	sched_update_nr_prod(cpu_of(rq), rq->nr_running, true);
+#endif
 	rq->nr_running++;
 }
 
 static inline void dec_nr_running(struct rq *rq)
 {
+#if defined(CONFIG_MSM_DCVS)
 	sched_update_nr_prod(cpu_of(rq), rq->nr_running, false);
+#endif
 	rq->nr_running--;
 }
 
