@@ -242,11 +242,7 @@ static int proc_keys_show(struct seq_file *m, void *v)
 #define showflag(KEY, LETTER, FLAG) \
 	(test_bit(FLAG,	&(KEY)->flags) ? LETTER : '-')
 
-#ifdef CONFIG_F2FS_FS
-	seq_printf(m, "%08x %c%c%c%c%c%c%c %5d %4s %08x %5d %5d %-9.9s ",
-#else
 	seq_printf(m, "%08x %c%c%c%c%c%c %5d %4s %08x %5d %5d %-9.9s ",
-#endif
 		   key->serial,
 		   showflag(key, 'I', KEY_FLAG_INSTANTIATED),
 		   showflag(key, 'R', KEY_FLAG_REVOKED),
@@ -254,9 +250,6 @@ static int proc_keys_show(struct seq_file *m, void *v)
 		   showflag(key, 'Q', KEY_FLAG_IN_QUOTA),
 		   showflag(key, 'U', KEY_FLAG_USER_CONSTRUCT),
 		   showflag(key, 'N', KEY_FLAG_NEGATIVE),
-#ifdef CONFIG_F2FS_FS
-		   showflag(key, 'i', KEY_FLAG_INVALIDATED),
-#endif
 		   atomic_read(&key->usage),
 		   xbuf,
 		   key->perm,

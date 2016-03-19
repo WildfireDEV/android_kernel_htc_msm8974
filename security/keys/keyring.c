@@ -366,25 +366,13 @@ key_ref_t keyring_search_aux(key_ref_t keyring_ref,
 	/* otherwise, the top keyring must not be revoked, expired, or
 	 * negatively instantiated if we are to search it */
 	key_ref = ERR_PTR(-EAGAIN);
-#ifdef CONFIG_F2FS_FS
-	if (kflags & ((1 << KEY_FLAG_INVALIDATED) |
-		      (1 << KEY_FLAG_REVOKED) |
-		      (1 << KEY_FLAG_NEGATIVE)) ||
-#else
 	if (kflags & ((1 << KEY_FLAG_REVOKED) | (1 << KEY_FLAG_NEGATIVE)) ||
-#endif
 	    (keyring->expiry && now.tv_sec >= keyring->expiry))
 		goto error_2;
 
 	/* start processing a new keyring */
 descend:
-#ifdef CONFIG_F2FS_FS
-	kflags = keyring->flags;
-	if (kflags & ((1 << KEY_FLAG_INVALIDATED) |
-		      (1 << KEY_FLAG_REVOKED)))
-#else
 	if (test_bit(KEY_FLAG_REVOKED, &keyring->flags))
-#endif
 		goto not_this_keyring;
 
 	keylist = rcu_dereference(keyring->payload.subscriptions);
@@ -402,16 +390,9 @@ descend:
 		if (key->type != type)
 			continue;
 
-#ifdef CONFIG_F2FS_FS
-		/* skip invalidated, revoked and expired keys */
- 		if (!no_state_check) {
-			if (kflags & ((1 << KEY_FLAG_INVALIDATED) |
-				      (1 << KEY_FLAG_REVOKED)))
-#else
 		/* skip revoked keys and expired keys */
 		if (!no_state_check) {
 			if (kflags & (1 << KEY_FLAG_REVOKED))
-#endif
 				continue;
 
 			if (key->expiry && now.tv_sec >= key->expiry)
@@ -557,12 +538,7 @@ key_ref_t __keyring_search_one(key_ref_t keyring_ref,
 			     key->type->match(key, description)) &&
 			    key_permission(make_key_ref(key, possessed),
 					   perm) == 0 &&
-#ifdef CONFIG_F2FS_FS
-			    !(key->flags & ((1 << KEY_FLAG_INVALIDATED) |
-					    (1 << KEY_FLAG_REVOKED)))
-#else
 			    !test_bit(KEY_FLAG_REVOKED, &key->flags)
-#endif
 			    )
 				goto found;
 		}
@@ -1151,7 +1127,6 @@ static void keyring_revoke(struct key *keyring)
 	}
 }
 
-#ifndef CONFIG_F2FS_FS
 /*
  * Determine whether a key is dead.
  */
@@ -1160,7 +1135,6 @@ static bool key_is_dead(struct key *key, time_t limit)
 	return test_bit(KEY_FLAG_DEAD, &key->flags) ||
 		(key->expiry > 0 && key->expiry <= limit);
 }
-#endif
 
 /*
  * Collect garbage from the contents of a keyring, replacing the old list with
