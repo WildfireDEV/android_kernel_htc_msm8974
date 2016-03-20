@@ -1009,14 +1009,14 @@ void proximity_set(int enabled)
 
 int check_pocket(void)
 {
-	u8 data[2]={0};
+	u8 data[10]={0};
 	int ret;
 
 	CWMCU_i2c_read(mcu_data, CWSTM32_READ_Proximity, data, 2);
 	I("[WG] check pocket: data0=%d data1=%d\n", data[0], data[1]);
 	ret = data[0];
 
-	return !ret;
+	return ret;
 }
 #endif
 
@@ -1382,6 +1382,13 @@ static int active_set(struct device *dev,struct device_attribute *attr,const cha
 		I("%s: Any_Motion && power_key_pressed\n", __func__);
 		return count;
 	}
+
+#ifdef CONFIG_TOUCHSCREEN_SYNAPTICS_WAKE_GESTURES
+	if ((sensors_id == Proximity) && (enabled == 0) && proximity_flag) {
+		enabled = 1;
+	}
+#endif
+
 	if ((sensors_id == Proximity) && (enabled == 0)) {
 		if (mcu_data->proximity_debu_info == 1) {
 			uint8_t mcu_data_p[4];
