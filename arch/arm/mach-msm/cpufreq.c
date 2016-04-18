@@ -38,7 +38,6 @@
 #include <mach/htc_footprint.h>
 #endif
 #include <mach/clk-provider.h>
-#endif
 
 #include "acpuclock.h"
 
