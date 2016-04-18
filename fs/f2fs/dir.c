@@ -9,7 +9,6 @@
  * published by the Free Software Foundation.
  */
 #include <linux/fs.h>
-#include <linux/namei.h>
 #include <linux/f2fs_fs.h>
 #include "f2fs.h"
 #include "node.h"
@@ -135,9 +134,8 @@ struct f2fs_dir_entry *find_target_dentry(struct f2fs_filename *fname,
 				goto found;
 		} else if (de_name.len == name->len &&
 			de->hash_code == namehash &&
-			!memcmp(de_name.name, name->name, name->len)) {
+			!memcmp(de_name.name, name->name, name->len))
 			goto found;
-		}
 
 		if (max_slots && max_len > *max_slots)
 			*max_slots = max_len;
@@ -190,7 +188,7 @@ static struct f2fs_dir_entry *find_in_level(struct inode *dir,
 		}
 
 		de = find_in_block(dentry_page, fname, namehash, &max_slots,
-							res_page);
+								res_page);
 		if (de)
 			break;
 
@@ -213,8 +211,8 @@ static struct f2fs_dir_entry *find_in_level(struct inode *dir,
  * and the entry itself. Page is returned mapped and unlocked.
  * Entry is guaranteed to be valid.
  */
-struct f2fs_dir_entry *f2fs_find_entry(struct inode *dir, struct qstr *child,
-		struct page **res_page)
+struct f2fs_dir_entry *f2fs_find_entry(struct inode *dir,
+			struct qstr *child, struct page **res_page)
 {
 	unsigned long npages = dir_blocks(dir);
 	struct f2fs_dir_entry *de = NULL;
@@ -298,7 +296,7 @@ void f2fs_set_link(struct inode *dir, struct f2fs_dir_entry *de,
 {
 	enum page_type type = f2fs_has_inline_dentry(dir) ? NODE : DATA;
 	lock_page(page);
-	f2fs_wait_on_page_writeback(page, type);
+	f2fs_wait_on_page_writeback(page, type, true);
 	de->ino = cpu_to_le32(inode->i_ino);
 	set_de_type(de, inode->i_mode);
 	f2fs_dentry_kunmap(dir, page);
@@ -313,7 +311,7 @@ static void init_dent_inode(const struct qstr *name, struct page *ipage)
 {
 	struct f2fs_inode *ri;
 
-	f2fs_wait_on_page_writeback(ipage, NODE);
+	f2fs_wait_on_page_writeback(ipage, NODE, true);
 
 	/* copy name info. to this inode page */
 	ri = F2FS_INODE(ipage);
@@ -513,8 +511,12 @@ void f2fs_update_dentry(nid_t ino, umode_t mode, struct f2fs_dentry_ptr *d,
 	memcpy(d->filename[bit_pos], name->name, name->len);
 	de->ino = cpu_to_le32(ino);
 	set_de_type(de, mode);
-	for (i = 0; i < slots; i++)
+	for (i = 0; i < slots; i++) {
 		test_and_set_bit_le(bit_pos + i, (void *)d->bitmap);
+		/* avoid wrong garbage data for readdir */
+		if (i)
+			(de + i)->name_len = 0;
+	}
 }
 
 /*
@@ -600,7 +602,7 @@ start:
 	++level;
 	goto start;
 add_dentry:
-	f2fs_wait_on_page_writeback(dentry_page, DATA);
+	f2fs_wait_on_page_writeback(dentry_page, DATA, true);
 
 	if (inode) {
 		down_write(&F2FS_I(inode)->i_sem);
@@ -711,7 +713,7 @@ void f2fs_delete_entry(struct f2fs_dir_entry *dentry, struct page *page,
 		return f2fs_delete_inline_entry(dentry, page, dir, inode);
 
 	lock_page(page);
-	f2fs_wait_on_page_writeback(page, DATA);
+	f2fs_wait_on_page_writeback(page, DATA, true);
 
 	dentry_blk = page_address(page);
 	bit_pos = dentry - dentry_blk->dentry;
@@ -796,6 +798,11 @@ bool f2fs_fill_dentries(struct file *file, void *dirent, filldir_t filldir,
 			break;
 
 		de = &d->dentry[bit_pos];
+
+		if (de->name_len == 0) {
+			bit_pos++;
+			continue;
+		}
 
 		if (types && de->file_type < F2FS_FT_MAX)
 			d_type = types[de->file_type];
@@ -905,11 +912,19 @@ out:
 	return err;
 }
 
+static int f2fs_dir_open(struct inode *inode, struct file *filp)
+{
+	if (f2fs_encrypted_inode(inode))
+		return f2fs_get_encryption_info(inode) ? -EACCES : 0;
+	return 0;
+}
+
 const struct file_operations f2fs_dir_operations = {
 	.llseek		= generic_file_llseek,
 	.read		= generic_read_dir,
 	.readdir	= f2fs_readdir,
 	.fsync		= f2fs_sync_file,
+	.open		= f2fs_dir_open,
 	.unlocked_ioctl	= f2fs_ioctl,
 #ifdef CONFIG_COMPAT
 	.compat_ioctl   = f2fs_compat_ioctl,
